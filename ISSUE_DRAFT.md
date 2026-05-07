@@ -151,9 +151,7 @@ The proposal is to make tagged-templateness a property of the **type** itself, s
 
 ### Sketch
 
-Two possible surfaces:
-
-**A. A new type constructor**
+A new built-in type constructor that the compiler treats specially:
 
 ```res
 type taggedTemplate<'param, 'output>
@@ -166,13 +164,7 @@ external sql: taggedTemplate<'a, promise<queryResult>> = "sql"
 let sql = postgres(connectionString)
 ```
 
-**B. A type-level annotation that propagates**
-
-```res
-let sql: @taggedTemplate (array<string>, array<'a>) => promise<queryResult> = ...
-```
-
-Either form supports things like:
+Because it is a real type, it composes naturally — it can be written in function signatures, returned from factories, stored in records, etc.:
 
 ```res
 // Cross-module use still emits tl syntax:
