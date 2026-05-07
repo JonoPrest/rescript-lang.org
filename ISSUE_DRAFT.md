@@ -87,7 +87,7 @@ async function run() {
 
 This is **not** a tagged template literal. `postgres` enforces tagged-template invocation (it relies on `strings.raw` and identity caching of the `TemplateStringsArray`) and rejects this at runtime.
 
-The compiler can only emit real tl syntax when the `@taggedTemplate` external is in scope **as the external itself**. Once it crosses a module boundary, the consumer only sees the wrapper.
+The compiler can only emit real tagged-template syntax when the `@taggedTemplate` external is in scope **as the external itself**. Once it crosses a module boundary, the consumer only sees the wrapper.
 
 ### 2c. Same problem when the tag flows through any value
 
@@ -110,7 +110,7 @@ The moment the tag is passed as a value, every downstream call uses variadic spr
 
 ---
 
-## Problem 3 — Native ReScript tag functions never emit tl syntax
+## Problem 3 — Native ReScript tag functions never emit tagged-template syntax
 
 A tag function defined in pure ReScript (no decorator) always compiles to a plain function call:
 
@@ -135,11 +135,11 @@ So a ReScript-authored wrapper around `postgres` (e.g. one converting typed para
 
 ## Summary
 
-| #   | Limitation                                                        | Consequence                                                                         |
-| --- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| 1   | `@taggedTemplate` requires a static export.                       | Cannot bind to factory-returning-tag libraries (`postgres` and similar).            |
-| 2   | The re-export workaround emits a wrapper that loses tl semantics. | Cross-module use and any first-class use silently degrade to a plain function call. |
-| 3   | Native ReScript tag functions never emit tl syntax.               | Cannot author a typed ReScript wrapper around a JS tag function.                    |
+| #   | Limitation                                                                     | Consequence                                                                         |
+| --- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| 1   | `@taggedTemplate` requires a static export.                                    | Cannot bind to factory-returning-tag libraries (`postgres` and similar).            |
+| 2   | The re-export workaround emits a wrapper that loses tagged-template semantics. | Cross-module use and any first-class use silently degrade to a plain function call. |
+| 3   | Native ReScript tag functions never emit tagged-template syntax.               | Cannot author a typed ReScript wrapper around a JS tag function.                    |
 
 ---
 
@@ -167,10 +167,10 @@ let sql = postgres(connectionString)
 Because it is a real type, it composes naturally — it can be written in function signatures, returned from factories, stored in records, etc.:
 
 ```res
-// Cross-module use still emits tl syntax:
+// Cross-module use still emits tagged-template syntax:
 await SqlBinding.sql`SELECT * FROM users WHERE id = ${userId}`
 
-// Functions accepting a tag use tl syntax inside:
+// Functions accepting a tag use tagged-template syntax inside:
 let findUser = async (sql: TaggedTemplate.t<int, promise<queryResult>>, id) => {
   await sql`SELECT * FROM users WHERE id = ${id}`
 }
@@ -194,7 +194,7 @@ let s = TaggedTemplate.make((strings, parameters) => {
   })
 })
 
-// Used the same way as any other tag — emits real tl syntax at every call site:
+// Used the same way as any other tag — emits real tagged-template syntax at every call site:
 let greeting = s`hello ${S("Ada")} you're ${I(36)} years old!`
 ```
 
@@ -206,15 +206,15 @@ For a value `v` whose static type is the tagged-template type:
 
 1. Every `` v`...` `` call site emits a real JS tagged template literal — regardless of how many module/function boundaries `v` crossed.
 2. No variadic-spread wrapper is generated; the JS value is exported as-is.
-3. Calling `v` as a regular function (`v(strings, params)`) is either rejected at type-check time or compiles to tl syntax.
+3. Calling `v` as a regular function (`v(strings, params)`) is either rejected at type-check time or compiles to tagged-template syntax.
 4. Placeholder and output types are still type-checked end-to-end.
 
 ### Why this fixes everything above
 
-| Problem                                  | How the proposal addresses it                                                       |
-| ---------------------------------------- | ----------------------------------------------------------------------------------- |
-| 1 — runtime-constructed tags             | `postgres(...)` returns a `TaggedTemplate.t<...>` and is usable directly.           |
-| 2a — wrapper-function leakage            | No wrapper emitted; JS value exported as-is.                                        |
-| 2b — cross-module degradation            | Type follows the value across modules; call sites emit tl syntax.                   |
-| 2c — first-class / pass-as-parameter use | Functions declare `TaggedTemplate.t<...>` parameters; tl syntax preserved.          |
-| 3 — ReScript-authored wrappers           | `TaggedTemplate.make` lifts any tag-shaped function into a `TaggedTemplate.t<...>`. |
+| Problem                                  | How the proposal addresses it                                                           |
+| ---------------------------------------- | --------------------------------------------------------------------------------------- |
+| 1 — runtime-constructed tags             | `postgres(...)` returns a `TaggedTemplate.t<...>` and is usable directly.               |
+| 2a — wrapper-function leakage            | No wrapper emitted; JS value exported as-is.                                            |
+| 2b — cross-module degradation            | Type follows the value across modules; call sites emit tagged-template syntax.          |
+| 2c — first-class / pass-as-parameter use | Functions declare `TaggedTemplate.t<...>` parameters; tagged-template syntax preserved. |
+| 3 — ReScript-authored wrappers           | `TaggedTemplate.make` lifts any tag-shaped function into a `TaggedTemplate.t<...>`.     |
